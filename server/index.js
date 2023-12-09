@@ -4,6 +4,7 @@ const cors = require("cors");
 const pool = require("./db");
 
 const uploadMiddleware = require("./middlewares/uploadMiddleware");
+const uploadImageMiddleware = require("./middlewares/uploadMiddleware");
 const fs = require("fs");
 const { get } = require("http");
 
@@ -21,6 +22,9 @@ const socketIO = require("socket.io")(http, {
 // middleware
 app.use(cors());
 app.use(express.json());
+
+// static files
+app.use("/images", express.static("images"));
 
 // socet io
 
@@ -60,13 +64,22 @@ app.post("/chats", async (req, res) => {
           "INSERT INTO chatrooms(name) VALUES ($1) RETURNING *",
           [users.join(",")]
         );
-        users.forEach(async (user) => {
+        let result = { ...newChat.rows[0], members: [] };
+
+        for (const user of users) {
+          console.log(user);
           const newChatUser = await pool.query(
             "INSERT INTO users_chatrooms(chatroom_id, user_id) VALUES ($1, (select id from users where username = $2))",
             [newChat.rows[0].id, user]
           );
-        });
-        res.json(newChat.rows[0]);
+          const userInfo = await pool.query(
+            "select * from users where username = $1",
+            [user]
+          );
+          result.members.push(userInfo.rows[0]);
+        }
+        console.log(result);
+        res.json(result);
       }
     }
   } catch (error) {
@@ -180,6 +193,41 @@ app.post("/users", async (req, res) => {
     console.error(error.message);
   }
 });
+
+// update a user
+
+app.put("/users/:user_id", uploadImageMiddleware, async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    const { username, email, currentPassword, newPassword } = req.body;
+    console.log(req.body);
+    const imageName = req.file.filename;
+    const user = await pool.query("SELECT * FROM users WHERE id = $1", [
+      user_id,
+    ]);
+
+    if (user.rows.length === 0) {
+      res.status(404).json({ message: "User not found" });
+    } else {
+      if (currentPassword !== user.rows[0].password) {
+        res.status(404).json({ message: "Incorrect password" });
+      } else {
+        const updatedUser = await pool.query(
+          "UPDATE users SET username = $1, email = $2, password = $3, avatar_name = $4 WHERE id = $5 RETURNING *",
+          [username, email, newPassword, imageName, user_id]
+        );
+        res.json(updatedUser.rows[0]);
+      }
+    }
+  } catch (error) {
+    console.error(error.message);
+  }
+});
+
+// update a user
+
+app.put("/users/:user_id", async (req, res) => {});
+
 // get all users
 
 app.get("/users", async (req, res) => {
@@ -257,24 +305,165 @@ app.post("/tasks", uploadMiddleware, async (req, res) => {
       members,
     } = req.body;
 
+    console.log(members, subtasks);
+
     const newTask = await pool.query(
-      "insert into   tasks(name, description, status, project_id, date_created) values ($1,$2,$3, (select p.id from projects p where p.name = $4) , $5) RETURNING *",
+      "insert into   tasks(name, description, status, project_id, date_created) values ($1,$2,$3, (select p.id from projects p where p.name = $4) , $5) RETURNING id",
       [name, description, status, projectName, date_created]
     );
-    res.json(newTask.rows[0]);
 
-    // files.forEach((file) => {
-    //   const filePath = `attachments/${file.filename}`;
-    //   fs.rename(file.path, filePath, (err) => {
-    //     if (err) {
-    //       // Handle error appropriately and send an error response
-    //       return res.status(500).json({ error: "Failed to store the file" });
-    //     }
-    //   });
-    // });
+    const task_id = newTask.rows[0].id;
 
-    // Send an appropriate response to the client
-    res.status(200).json({ message: "File upload successful" });
+    for (let index = 0; index < members.length; index++) {
+      const newTaskMember = await pool.query(
+        "insert into tasks_members(task_id, user_id) values ($1, (select id from users where username = $2))",
+        [task_id, members[index]]
+      );
+    }
+
+    const parsedSubtasks = JSON.parse(subtasks);
+
+    console.log(parsedSubtasks);
+
+    for (let index = 0; index < parsedSubtasks.length; index++) {
+      const newSubtask = await pool.query(
+        "insert into subtasks(text, completed, task_id) values ($1,$2,$3)",
+        [parsedSubtasks[index].title, parsedSubtasks[index].completed, task_id]
+      );
+    }
+
+    for (let index = 0; index < files.length; index++) {
+      const newFile = await pool.query(
+        "insert into attachments(file_name, file_source_name, task_id) values ($1,$2,$3)",
+        [files[index].originalname, files[index].filename, task_id]
+      );
+    }
+
+    res.status(200).json({ message: "Task adding successful" });
+  } catch (error) {
+    console.error(error.message);
+  }
+});
+
+// get tasks where user is a member
+
+app.get("/user_tasks/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    const userTasks = await pool.query(
+      "select t.* from tasks t inner join tasks_members tm on t.id = tm.task_id where tm.user_id = $1;",
+      [user_id]
+    );
+
+    // count members in tasks
+    for (let index = 0; index < userTasks.rows.length; index++) {
+      const taskMembers = await pool.query(
+        "select count(*) from tasks_members where task_id = $1",
+        [userTasks.rows[index].id]
+      );
+      userTasks.rows[index] = {
+        ...userTasks.rows[index],
+        members_count: parseInt(taskMembers.rows[0].count),
+      };
+    }
+
+    // count subtasks in tasks
+
+    for (let index = 0; index < userTasks.rows.length; index++) {
+      const taskSubtasks = await pool.query(
+        "select count(*) from subtasks where task_id = $1",
+        [userTasks.rows[index].id]
+      );
+      userTasks.rows[index] = {
+        ...userTasks.rows[index],
+        subtasks_count: parseInt(taskSubtasks.rows[0].count),
+      };
+    }
+
+    // count attachmetns in tasks
+    for (let index = 0; index < userTasks.rows.length; index++) {
+      const taskAttachments = await pool.query(
+        "select count(*) from attachments where task_id = $1",
+        [userTasks.rows[index].id]
+      );
+      userTasks.rows[index] = {
+        ...userTasks.rows[index],
+        attachments_count: parseInt(taskAttachments.rows[0].count),
+      };
+    }
+
+    // get project name
+    for (let index = 0; index < userTasks.rows.length; index++) {
+      const taskProject = await pool.query(
+        "select p.name from projects p inner join tasks t on p.id = t.project_id where t.id = $1",
+        [userTasks.rows[index].id]
+      );
+      userTasks.rows[index] = {
+        ...userTasks.rows[index],
+        project_name: taskProject.rows[0].name,
+      };
+    }
+
+    res.json(userTasks.rows);
+  } catch (error) {
+    console.error(error.message);
+  }
+});
+
+// get task by id
+app.get("/task/:task_id", async (req, res) => {
+  try {
+    const { task_id } = req.params;
+
+    const task = await pool.query("select * from tasks where id = $1", [
+      task_id,
+    ]);
+
+    const taskMembers = await pool.query(
+      "select u.* from tasks_members inner join users u on u.id = tasks_members.user_id where task_id = $1",
+      [task_id]
+    );
+
+    const taskSubtasks = await pool.query(
+      "select * from subtasks where task_id = $1",
+      [task_id]
+    );
+
+    const taskAttachments = await pool.query(
+      "select * from attachments where task_id = $1",
+      [task_id]
+    );
+    // project name
+
+    const taskProject = await pool.query(
+      "select p.name from projects p inner join tasks t on p.id = t.project_id where t.id = $1",
+      [task_id]
+    );
+
+    res.json({
+      ...task.rows[0],
+      members: taskMembers.rows,
+      subtasks: taskSubtasks.rows,
+      attachments: taskAttachments.rows,
+      project_name: taskProject.rows[0].name,
+    });
+  } catch (error) {
+    console.error(error.message);
+  }
+});
+
+// download attachment file by name
+
+app.get("/attachments/:file_name", async (req, res) => {
+  try {
+    const { file_name } = req.params;
+    const file = await pool.query(
+      "select * from attachments where file_source_name = $1",
+      [file_name]
+    );
+    const fileSource = `${__dirname}/attachments/${file_name}`;
+    res.download(fileSource, file.rows[0].file_name);
   } catch (error) {
     console.error(error.message);
   }

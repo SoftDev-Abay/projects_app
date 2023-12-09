@@ -3,7 +3,6 @@ import "./ProjectModal.scss";
 
 const ProjectModal = ({ isOpen, modalHandlier }) => {
   const { id, title, description, status, type, owner, members, date } = isOpen;
-  console.log(isOpen);
   return (
     <>
       {isOpen && (
@@ -43,7 +42,11 @@ const ProjectModal = ({ isOpen, modalHandlier }) => {
                     let random_id = Math.floor(Math.random() * 100);
                     return (
                       <img
-                        src={`https://randomuser.me/api/portraits/men/${random_id}.jpg`}
+                        src={
+                          member.avatar_name != null
+                            ? `http://localhost:5000/images/${member.avatar_name}`
+                            : "https://www.shutterstock.com/image-vector/blank-avatar-photo-place-holder-600nw-1095249842.jpg"
+                        }
                         alt={member}
                       />
                     );

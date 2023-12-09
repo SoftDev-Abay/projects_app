@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Layout from "./components/Layout";
 import ChatPage from "./pages/ChatPage";
 import AuthContext from "./context/AuthContext";
+import Profile from "./pages/Profile";
 
 function App() {
   const [isOpenProjectModal, setIsOpenProjectModal] = useState(false);
@@ -58,6 +59,14 @@ function App() {
               element={
                 <Layout chat={true}>
                   <ChatPage />
+                </Layout>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <Layout>
+                  <Profile />
                 </Layout>
               }
             />

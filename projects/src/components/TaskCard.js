@@ -1,18 +1,27 @@
 import React from "react";
 import "./TaskCard.scss";
-import { FaEllipsisH, FaFlag, FaComment, FaPaperclip } from "react-icons/fa";
+import {
+  FaEllipsisH,
+  FaFlag,
+  FaComment,
+  FaPaperclip,
+  FaProjectDiagram,
+  FaTasks,
+} from "react-icons/fa";
 import { Draggable } from "react-beautiful-dnd";
 
 const TaskCard = ({
   id,
   title,
   project,
-  description,
-  status,
-  members,
+  // description,
+  // status,
+  // members,
   date,
   modalHandlier,
   index,
+  subtasksCount,
+  attachments_count,
 }) => {
   return (
     <Draggable draggableId={`${id}`} key={id} index={index}>
@@ -22,7 +31,7 @@ const TaskCard = ({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           ref={provided.innerRef}
-          isDragging={snapshot.isDragging}
+          // onDrag={snapshot.isDragging}
         >
           <div>
             <div className="task-card-header">
@@ -32,15 +41,7 @@ const TaskCard = ({
                 style={{ cursor: "pointer" }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  modalHandlier({
-                    id,
-                    title,
-                    project,
-                    description,
-                    status,
-                    members,
-                    date,
-                  });
+                  modalHandlier(id);
                 }}
               />
             </div>
@@ -51,13 +52,19 @@ const TaskCard = ({
           <div className="task-card-footer">
             <span>
               <FaFlag className="icon" />
-              {date}
+              {date.split("T")[0]}
             </span>
-            <span>
+            {/* <span>
               <FaComment className="icon" />3
+            </span> */}
+
+            <span>
+              <FaTasks className="icon" />
+              {subtasksCount}
             </span>
             <span>
-              <FaPaperclip className="icon" />1
+              <FaPaperclip className="icon" />
+              {attachments_count}
             </span>
           </div>
           {provided.placeholder}

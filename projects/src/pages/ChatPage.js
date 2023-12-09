@@ -28,6 +28,7 @@ const ChatPage = () => {
   const [chatsModalOpen, setChatsModalOpen] = useState(false);
   const [userChats, setUserChats] = useState([]);
   const dummyMessageLastRef = useRef(null);
+  console.log(activeChat);
   const getUserChats = async () => {
     try {
       const response = await fetch(
@@ -223,7 +224,14 @@ const ChatPage = () => {
       <div className="chat-container">
         <div className="header">
           <div className="user-info-wrapper">
-            <img src={`https://randomuser.me/api/portraits/men/1.jpg`} alt="" />
+            <img
+              src={
+                activeChat.members[0].avatar_name != null
+                  ? `http://localhost:5000/images/${activeChat.members[0].avatar_name}`
+                  : "https://www.shutterstock.com/image-vector/blank-avatar-photo-place-holder-600nw-1095249842.jpg"
+              }
+              alt=""
+            />
             <div>
               <p className="user-name">
                 {activeChat ? activeChat.members[0].username : "Dummy user"}

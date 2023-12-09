@@ -9,20 +9,21 @@ import {
   FaComment,
   FaPaperclip,
   FaPlusCircle,
+  FaCheckCircle,
 } from "react-icons/fa";
 import axios from "axios";
-import { FiCircle } from "react-icons/fi";
+import { FiCheckCircle, FiCircle } from "react-icons/fi";
 import { ImageConfig } from "../config/ImageConfig";
 import { getAllUsers } from "../utility/getAllUsers";
 import { useAuthContext } from "../context/AuthContext";
 
 const CreateTaskModal = ({ isOpen, modalHandlier }) => {
-  const [members, setMembers] = useState([]);
   const [subtasks, setSubtasks] = useState([]);
   const [fileList, setFileList] = useState([]);
   const [projectName, setProjectName] = useState("");
   const [userProjects, setUserProjects] = useState(null);
   const { user } = useAuthContext();
+  const [members, setMembers] = useState([user.username]);
 
   const selectMember = useRef(null);
   const taskTitle = useRef(null);
@@ -34,8 +35,6 @@ const CreateTaskModal = ({ isOpen, modalHandlier }) => {
   useEffect(() => {
     getUserProjects();
   }, []); // Empty dependency array means this effect runs once on mount
-  console.log(userProjects);
-  console.log(projectName);
 
   const getUserProjects = async () => {
     try {
@@ -75,20 +74,30 @@ const CreateTaskModal = ({ isOpen, modalHandlier }) => {
     // console.log(file,fileList,"file removeed list");
   };
 
+  const onTaskStatusChange = (status, index) => {
+    const updatedSubtasks = [...subtasks];
+    updatedSubtasks[index].completed = status;
+    setSubtasks(updatedSubtasks);
+  };
+
   const onTaskCreate = async () => {
     const formData = new FormData();
     formData.append("name", taskTitle.current.value);
     formData.append("description", taskDescription.current.value);
     formData.append("projectName", projectName);
-    formData.append("members", members);
-    formData.append("subtasks", subtasks);
+    formData.append("date_created", new Date().toISOString());
+    formData.append("status", "ready");
+    members.forEach((username, index) => {
+      formData.append(`members[${index}]`, username);
+    });
+    formData.append("subtasks", JSON.stringify(subtasks));
+
     fileList.forEach((file) => {
       formData.append("files", file);
     });
     const result = await axios.post("http://localhost:5000/tasks", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    console.log(result);
   };
   return (
     <>
@@ -163,14 +172,10 @@ const CreateTaskModal = ({ isOpen, modalHandlier }) => {
                       onChange={(e) => {
                         const selectedMember = e.target.value;
                         if (
-                          selectedMember !== "all" &&
                           selectedMember !== "" &&
                           !members.includes(selectedMember)
                         ) {
                           const updatedMembers = [...members, selectedMember];
-                          setMembers(updatedMembers);
-                        } else if (selectedMember === "all") {
-                          const updatedMembers = ["Abay", "Damir", "Madi"];
                           setMembers(updatedMembers);
                         }
                       }}
@@ -228,11 +233,12 @@ const CreateTaskModal = ({ isOpen, modalHandlier }) => {
                         type="text"
                         ref={subtaskInput}
                         onBlur={() => {
-                          const subtaskText = {
+                          const newSubtask = {
                             title: subtaskInput.current.value.trimStart(),
+                            completed: false,
                           };
-                          if (subtaskText.title.length > 0) {
-                            const updatedSubtasks = [...subtasks, subtaskText];
+                          if (newSubtask.title.length > 0) {
+                            const updatedSubtasks = [...subtasks, newSubtask];
                             setSubtasks(updatedSubtasks);
                           }
                           subtaskInput.current.value = "";
@@ -242,7 +248,22 @@ const CreateTaskModal = ({ isOpen, modalHandlier }) => {
                     {subtasks?.map((subtask, index) => {
                       return (
                         <div className="subtask-item">
-                          <FiCircle className="icon" />
+                          {!subtask.completed ? (
+                            <FiCircle
+                              className="icon"
+                              onClick={() =>
+                                onTaskStatusChange(!subtask.completed, index)
+                              }
+                            />
+                          ) : (
+                            <FaCheckCircle
+                              className="icon"
+                              onClick={() =>
+                                onTaskStatusChange(!subtask.completed, index)
+                              }
+                              // style={{ color: "#2ecc71" }}
+                            />
+                          )}
                           <input
                             type="text"
                             value={subtask.title}

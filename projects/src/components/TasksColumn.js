@@ -16,19 +16,21 @@ const TasksColumn = ({ status, tasks, id, modalHandlier }) => {
             <div
               className="tasks-cards-wrapper tasks-ready-wrapper"
               ref={provided.innerRef}
-              isDraggingOver={snapshot.isDraggingOver}
+              // onDragEnd={snapshot.isDraggingOver}
               {...provided.droppableProps}
             >
               {tasks.map((task, index) => (
                 <TaskCard
                   key={task.id}
                   id={task.id}
-                  title={task.title}
-                  description={task.description}
-                  status={task.status}
-                  members={task.members}
-                  date={task.date}
-                  project={task.projectName}
+                  title={task.name}
+                  // description={task.description}
+                  // status={task.status}
+                  // members={task.members}
+                  date={task.date_created}
+                  project={task.project_name}
+                  attachments_count={task.attachments_count}
+                  subtasksCount={task.subtasks_count}
                   modalHandlier={modalHandlier}
                   index={index}
                 />

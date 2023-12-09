@@ -1,6 +1,6 @@
 import React from "react";
 import "./LeftSidebar.scss";
-import { FaTable, FaPlus, FaTasks, FaComment } from "react-icons/fa";
+import { FaTable, FaPlus, FaTasks, FaComment, FaUser } from "react-icons/fa";
 import { useAuthContext } from "../context/AuthContext";
 const LeftSidebar = (props) => {
   const pathname = window.location.pathname; // returns the path of the current page
@@ -28,6 +28,9 @@ const LeftSidebar = (props) => {
         </a>
         <a href="chat" className={pathname === "/chat" ? "active" : ""}>
           <FaComment className="icon" /> <span>Chat</span>
+        </a>
+        <a href="profile" className={pathname === "/profile" ? "active" : ""}>
+          <FaUser className="icon" /> <span>Profile</span>
         </a>
       </div>
     </nav>

@@ -2,14 +2,23 @@ import "./Tasks.scss";
 import TaskCard from "../components/TaskCard";
 import { FaEllipsisH, FaPlus } from "react-icons/fa";
 import TaskModal from "../modals/TaskModal";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import CreateTaskModal from "../modals/CreateTaskModal";
 import { DragDropContext } from "react-beautiful-dnd";
 import TasksColumn from "../components/TasksColumn";
-import { globalTasks } from "../assets";
+import { useEffect } from "react";
+import { useAuthContext } from "../context/AuthContext";
 
 const Tasks = () => {
+  const { user } = useAuthContext();
   const [isOpenTaskModal, setIsOpenTaskModal] = useState(false);
+  const [userTasks, setUserTasks] = useState([]);
+
+  const [tasksReady, setTasksReady] = useState([]);
+  const [tasksInProgress, setTasksInProgress] = useState([]);
+  const [tasksNeedsReview, setTasksNeedsReview] = useState([]);
+  const [tasksDone, setTasksDone] = useState([]);
+
   const TaskModalHandlier = (value) => {
     setIsOpenTaskModal(value);
   };
@@ -18,18 +27,37 @@ const Tasks = () => {
     setIsOpenCreateTaskModal(value);
   };
 
-  const [tasksReady, setTasksReady] = useState(
-    globalTasks.filter((task) => task.status === "ready")
-  );
-  const [tasksInProgress, setTasksInProgress] = useState(
-    globalTasks.filter((task) => task.status === "in-progress")
-  );
-  const [tasksNeedsReview, setTasksNeedsReview] = useState(
-    globalTasks.filter((task) => task.status === "needs-review")
-  );
-  const [tasksDone, setTasksDone] = useState(
-    globalTasks.filter((task) => task.status === "done")
-  );
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    setStatusTasks();
+  }, [userTasks]);
+
+  const setStatusTasks = () => {
+    setTasksReady(userTasks.filter((task) => task.status === "ready"));
+    setTasksInProgress(
+      userTasks.filter((task) => task.status === "in-progress")
+    );
+    setTasksNeedsReview(
+      userTasks.filter((task) => task.status === "needs-review")
+    );
+    setTasksDone(userTasks.filter((task) => task.status === "done"));
+  };
+
+  const fetchData = async () => {
+    try {
+      const result = await fetch(`http://localhost:5000/user_tasks/${user.id}`);
+      const data = await result.json();
+
+      await setUserTasks(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  console.log("renderd");
 
   const handleDragEnd = (result) => {
     const { destination, source, draggableId } = result;
@@ -39,7 +67,7 @@ const Tasks = () => {
     if (source.droppableId === destination.droppableId) return;
 
     // find task being dragged
-    const task = globalTasks.find((task) => task.id == draggableId);
+    const task = userTasks.find((task) => task.id == draggableId);
 
     // remove from source array
     switch (source.droppableId) {

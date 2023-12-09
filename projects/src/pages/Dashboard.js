@@ -6,7 +6,8 @@ import { useAuthContext } from "../context/AuthContext";
 const Dashboard = ({ modalHandlier }) => {
   const { user } = useAuthContext();
   const [userProjects, setUserProjects] = useState([]);
-
+  const [categories, setCategories] = useState([]);
+  const [currentFilterCategory, setCurrentFilterCategory] = useState("all");
   const getUserProjects = async () => {
     try {
       const response = await fetch(
@@ -23,41 +24,63 @@ const Dashboard = ({ modalHandlier }) => {
     getUserProjects();
   }, []);
 
+  useEffect(() => {
+    const allCategories = userProjects.map((project) => project.category);
+    setCategories(allCategories);
+  }, [userProjects]);
+
   return (
-    <section>
+    <section className="section-dashboard">
       <div className="filter-container">
         <span className="title">Filter by:</span>
         <div className="filter-items-wrapper">
-          <span className="filter-item">all</span>
-          <span className="filter-item">mine</span>
-          <span className="filter-item">development</span>
-          <span className="filter-item">design</span>
-          <span className="filter-item filter-item-last">marketing</span>
+          <span
+            className="filter-item"
+            onClick={() => setCurrentFilterCategory("all")}
+          >
+            all
+          </span>
+          {categories.map((category) => (
+            <span
+              className="filter-item"
+              onClick={() => setCurrentFilterCategory(category)}
+            >
+              {category}
+            </span>
+          ))}
+
+          <span className="filter-item filter-item-last">last</span>
         </div>
       </div>
       <div className="projects-container">
-        {userProjects.map((project) => {
-          return (
-            <ProjectCard
-              key={project.id}
-              id={project.id}
-              title={project.name}
-              description={project.description}
-              status="status"
-              type={project.category}
-              owner={
-                project.members.filter(
-                  (member) =>
-                    member.user_role == "owner" || member.user_role == "Owner"
-                )[0]
-              }
-              members={project.members}
-              date={project.date_created}
-              deadline={project.date_due}
-              modalHandlier={modalHandlier}
-            />
-          );
-        })}
+        {userProjects
+          .filter(
+            (project) =>
+              currentFilterCategory == "all" ||
+              project.category == currentFilterCategory
+          )
+          .map((project) => {
+            return (
+              <ProjectCard
+                key={project.id}
+                id={project.id}
+                title={project.name}
+                description={project.description}
+                status="status"
+                type={project.category}
+                owner={
+                  project.members.filter(
+                    (member) =>
+                      member.user_role == "owner" || member.user_role == "Owner"
+                  )[0]
+                }
+                members={project.members}
+                date={project.date_created.split("T")[0]}
+                deadline={project.date_due}
+                modalHandlier={modalHandlier}
+              />
+            );
+          })}
       </div>
     </section>
   );

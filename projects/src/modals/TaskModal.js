@@ -1,4 +1,4 @@
-import { React, useRef, useState } from "react";
+import { React, useCallback, useRef, useState } from "react";
 import "./TaskModal.scss";
 import {
   FaGgCircle,
@@ -8,58 +8,46 @@ import {
   FaFlag,
   FaComment,
   FaPaperclip,
+  FaCheckCircle,
 } from "react-icons/fa";
 import Comments from "../components/Comments";
 
 import { FiCircle } from "react-icons/fi";
 import { ImageConfig } from "../config/ImageConfig";
+import { useEffect } from "react";
 
 const TaskModal = ({ isOpen, modalHandlier }) => {
-  let taskInfo = {
-    id: "",
-    title: "",
-    project: "",
-    description: "",
-    status: "",
-    members: [],
-    date: "",
-  };
-  if (isOpen === true);
-  else {
-    taskInfo = isOpen;
+  const [task, setTask] = useState(null);
+
+  const getTaskInfo = useCallback(async () => {
+    try {
+      const res = await fetch(`http://localhost:5000/task/${isOpen}`);
+      const data = await res.json();
+      setTask(data);
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  useEffect(() => {
+    getTaskInfo();
+  }, [isOpen]);
+
+  if (!task) {
+    return null;
   }
 
-  const { id, title, project, description, status, members, date } = taskInfo;
+  const {
+    id,
+    name,
+    project_name,
+    description,
+    status,
+    members,
+    date_created,
+    attachments,
+  } = task;
 
-  const [fileList, setFileList] = useState([]);
-
-  const wrapperRef = useRef(null);
-
-  const onDragOver = () => {
-    wrapperRef.current.classList.add("dragover");
-  };
-  const onDragLeave = () => {
-    wrapperRef.current.classList.remove("dragover");
-  };
-  const onDrop = () => {
-    wrapperRef.current.classList.add("dragover");
-  };
-
-  const onFileDrop = (e) => {
-    const newFile = e.target.files[0];
-    console.log(newFile, newFile.type, newFile.type.split("/")[1]);
-    if (newFile) {
-      const updatedFileList = [...fileList, newFile];
-      setFileList(updatedFileList);
-    }
-  };
-
-  const fileRemove = (file) => {
-    const updatedFileList = [...fileList];
-    updatedFileList.splice(fileList.indexOf(file), 1);
-    setFileList(updatedFileList);
-    // console.log(file,fileList,"file removeed list");
-  };
   return (
     <>
       {isOpen && (
@@ -76,7 +64,7 @@ const TaskModal = ({ isOpen, modalHandlier }) => {
                 >
                   &#10006;
                 </div>
-                <h1>{title}</h1>
+                <h1>{name}</h1>
               </div>
               <div className="modal-body">
                 <div className="modal-body-header">
@@ -85,10 +73,12 @@ const TaskModal = ({ isOpen, modalHandlier }) => {
                       <strong>{status}</strong>
                     </span>
                     <span>
-                      <strong>{project}</strong>
+                      <strong>{project_name}</strong>
                     </span>
                   </div>
-                  <span className="project-modal-date">{date}</span>
+                  <span className="project-modal-date">
+                    {date_created.split("T")[0]}
+                  </span>
                 </div>
                 <p>{description}</p>
                 <div className="members">
@@ -96,7 +86,11 @@ const TaskModal = ({ isOpen, modalHandlier }) => {
                     let random_id = Math.floor(Math.random() * 100);
                     return (
                       <img
-                        src={`https://randomuser.me/api/portraits/men/${random_id}.jpg`}
+                        src={
+                          member.avatar_name != null
+                            ? `http://localhost:5000/images/${member.avatar_name}`
+                            : "https://www.shutterstock.com/image-vector/blank-avatar-photo-place-holder-600nw-1095249842.jpg"
+                        }
                         alt={member}
                       />
                     );
@@ -107,52 +101,53 @@ const TaskModal = ({ isOpen, modalHandlier }) => {
                 <div className="subtasks-container">
                   <h3>Subtasks</h3>
                   <div className="subtasks-list">
-                    <li className="subtask-item">
-                      <FiCircle className="icon" />
-                      <input type="text" />
-                    </li>
-                  </div>
-                </div>
-                <div className="task-modal-attachments">
-                  <h3>Attachments</h3>
-                  <div className="attachments-list">
-                    {fileList?.map((item, index) => {
+                    {task?.subtasks?.map((subtask) => {
                       return (
-                        <div className="attachment-item" key={index}>
-                          <img
-                            src={
-                              ImageConfig[item.type.split("/")[1]] ||
-                              ImageConfig["default"]
-                            }
-                            alt=""
-                          />
-                          <div className="attachment-item-info">
-                            <p>{item.name}</p>
-                            <p>{item.size}B</p>
-                          </div>
-                          <span
-                            className="attachment-item-del"
-                            onClick={() => fileRemove(item)}
-                          >
-                            &#10006;
-                          </span>
+                        <div className="subtask-item">
+                          {!subtask.completed ? (
+                            <FiCircle className="icon" />
+                          ) : (
+                            <FaCheckCircle
+                              className="icon"
+                              // style={{ color: "#2ecc71" }}
+                            />
+                          )}
+                          <input type="text" value={subtask.text} />
                         </div>
                       );
                     })}
                   </div>
-                  <div
-                    ref={wrapperRef}
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                    className="drop-file-input"
-                  >
-                    <div className="drop-file-input_label">
-                      <p>Click to add / drop your files here</p>
-                    </div>
-                    <input type="file" value="" onChange={onFileDrop} />
-                  </div>
                 </div>
+
+                {attachments.length > 0 && (
+                  <div className="task-modal-attachments">
+                    <h3>Attachments</h3>
+                    <div className="attachments-list">
+                      {attachments?.map((item, index) => {
+                        return (
+                          <div className="attachment-item" key={index}>
+                            <img
+                              src={
+                                ImageConfig[item.file_name.split(".")[1]] ||
+                                ImageConfig["default"]
+                              }
+                              alt=""
+                            />
+                            <div className="attachment-item-info">
+                              <p>
+                                {item.file_name.split(
+                                  0,
+                                  -(item.file_name.split(".")[1].length + 33)
+                                )}
+                              </p>
+                              <p>20B</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <Comments />
                 <button
                   className="modal-button close-modal"

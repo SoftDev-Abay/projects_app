@@ -29,11 +29,11 @@ const ChatsModal = ({ modalHandlier, setChat, activeChatId, userChats }) => {
       headers: { "Content-Type": "application/json" },
     });
     const data = await responce.json();
+    setChat(data);
     if (data) {
       modalHandlier(false);
     }
   };
-  console.log(userChats);
   return (
     <div className="chats-modal">
       <div className="modal" onClick={() => modalHandlier(false)}>
@@ -60,7 +60,11 @@ const ChatsModal = ({ modalHandlier, setChat, activeChatId, userChats }) => {
                     className={activeChatId === chat.id && `active-chat-item`}
                   >
                     <img
-                      src={`https://randomuser.me/api/portraits/men/1.jpg`}
+                      src={
+                        chat.members[0].avatar_name != null
+                          ? `http://localhost:5000/images/${chat.members[0].avatar_name}`
+                          : "https://www.shutterstock.com/image-vector/blank-avatar-photo-place-holder-600nw-1095249842.jpg"
+                      }
                       alt=""
                     />
                     <div className="chat-info">
@@ -93,7 +97,11 @@ const ChatsModal = ({ modalHandlier, setChat, activeChatId, userChats }) => {
                     }}
                   >
                     <img
-                      src={`https://randomuser.me/api/portraits/men/1.jpg`}
+                      src={
+                        userIterator.avatar_name != null
+                          ? `http://localhost:5000/images/${userIterator.avatar_name}`
+                          : "https://www.shutterstock.com/image-vector/blank-avatar-photo-place-holder-600nw-1095249842.jpg"
+                      }
                       alt=""
                     />
                     <div className="chat-info">
